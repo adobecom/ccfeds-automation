@@ -2032,5 +2032,76 @@ module.exports = {
       redirectURL: 'https://business.stage.adobe.com/fr/solutions/content-management.html?akamaiLocale=co',
       expectedURl: 'https://business.stage.adobe.com/es/solutions/content-management.html',
     },
+
+{
+      tcid: '284',
+      name: '@LanguageSelectorSearch-for-individual-locales-US',
+      path: '/solutions/content-management.html',
+      tags: '@cc @search @search-locales-US',
+      url: 'https://business.stage.adobe.com/solutions/content-management.html',
+    },
+
+    {
+      tcid: '285',
+      name: '@LanguageSelectorSearch-for-individual-locales-KR',
+      path: '/kr/solutions/content-management.html?akamaiLocale=ar',
+      tags: '@cc @search @search-locales-KR',
+      url: 'https://business.stage.adobe.com/kr/solutions/content-management.html?akamaiLocale=ar',
+    },
+
+    {
+      tcid: '286',
+      name: '@LanguageSelectorSearch-for-individual-languages-US',
+      path: '?mep=off',
+      tags: '@cc @search @search-languages-us',
+      url: 'https://business.stage.adobe.com.html',
+    },
+
+    {
+      tcid: '287',
+      name: '@LanguageSelectorSearch-for-individual-languages-UK',
+      path: '/uk/solutions/content-management.html?akamaiLocale=gb',
+      tags: '@cc @search @search-languages-uk',
+      url: 'https://business.stage.adobe.com/uk/solutions/content-management.html?akamaiLocale=gb',
+    },
+
+{ 
+      tcid: '288',
+      name: '@LanguageSelectorSearch-for-partial-text',
+      path: '/it/products/experience-manager/assets.html?akamaiLocale=pt',
+      tags: '@cc @search @search-partial-text',
+      url: 'https://business.stage.adobe.com/it/products/experience-manager/assets.html?akamaiLocale=pt',
+    },
+
+    {
+      tcid: '289',
+      name: '@LanguageSelectorSearch-for-invalid-Input',
+      path: '/es/solutions/content-management.html?akamaiLocale=hn',
+      tags: '@cc @search @search-invalid-input',
+      url: 'https://business.stage.adobe.com/es/solutions/content-management.html?akamaiLocale=hn',
+    },
+{
+      tcid: '290',
+      name: '@LanguageSelectorSearch-for-special-charaters',
+      path: '/solutions/content-management.html?akamaiLocale=si',
+      tags: '@cc @search @search-special-characters',
+      url: 'https://business.stage.adobe.com/solutions/content-management.html?akamaiLocale=si',
+    },
+
+{
+      tcid: '291',
+      name: '@LanguageSelectorSearch-for-en-languages',
+      path: '/jp/solutions/content-management.html?akamaiLocale=bm',
+      tags: '@cc @search @search-en-languages',
+      url: 'https://business.stage.adobe.com/jp/solutions/content-management.html?akamaiLocale=bm',
+    },
+
+    {
+      tcid: '292',
+      name: '@LanguageSelectorSearch-and-redirection',
+      path: '/pt/solutions/content-management.html?akamaiLocale=co',
+      tags: '@cc @search @search-and-redirection',
+      url: 'https://business.stage.adobe.com/pt/solutions/content-management.html?akamaiLocale=co',
+    },
   ],
 };
