@@ -1,0 +1,41 @@
+/* eslint-disable import/named */
+/* eslint-disable no-await-in-loop */
+/* eslint-disable import/extensions */
+import { expect, test } from '@playwright/test';
+import { features } from '../../features/feds/search.spec.js';
+import FedsHeader from '../../selectors/feds/feds.header.page.js';
+
+test.describe('Search Component test suite', () => {
+  // FEDS Search Component Checks:
+  test(`${features[0].name}, ${features[0].tags}`, async ({ page, baseURL }) => {
+    const Header = new FedsHeader(page);
+    console.info(`[FEDSInfo] Checking page: ${baseURL}${features[0].path}`);
+
+    await test.step('Navigate to search component page', async () => {
+      await page.goto(`${baseURL}${features[0].path}${features[0].browserParams}`);
+      await page.waitForLoadState('domcontentloaded');
+      await expect(page).toHaveURL(`${baseURL}${features[0].path}${features[0].browserParams}`);
+    });
+
+    await test.step('Check search component basic functionality', async () => {
+      await Header.openSearchBar();
+      await Header.closeSearchBar();
+    });
+
+    await test.step('Check search component functionality (real search)', async () => {
+      await Header.openSearchBar();
+      await Header.searchInput.fill('Adobe Photoshop');
+      await expect(Header.searchResults).toBeVisible();
+      await Header.closeSearchBar();
+    });
+
+    await test.step('Check search component functionality (bogus search)', async () => {
+      await Header.openSearchBar();
+      await Header.searchInput.fill('How much wood could a woodchuck chuck ...');
+      // Wait for search results to populate:
+      await page.waitForTimeout(1000);
+      await expect(Header.advancedSearchLink).toBeVisible();
+      await Header.closeSearchBar();
+    });
+  });
+});

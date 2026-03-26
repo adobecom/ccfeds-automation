@@ -7,7 +7,7 @@ export default class seocanonical {
   }
 
   async checkPage() {
-    expect(await this.seoCanonicalLink).toBeTruthy();
+    await expect(this.seoCanonicalLink).toBeAttached();
     const href = await this.seoCanonicalLink.getAttribute('href');
     console.log(`Canonical link href: ${href}`);
   }
