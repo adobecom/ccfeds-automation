@@ -206,10 +206,23 @@ test.describe('Lingo-Geo | JSON Snapshot', () => {
         console.info(`[LingoGeo] Snapshot created for ${label} ✓`);
         continue;
       }
-      const snapshot = fs.readFileSync(file, 'utf8');
+      const snapshot = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
       if (JSON.stringify(live, null, 2) !== snapshot) {
+        if (!live) {
+          console.error(`[LingoGeo] ${label} — live fetch returned null (stage unreachable or JSON missing)`);
+          allChanges.push(`${label}: live fetch returned null`);
+          failed = true;
+          continue;
+        }
         const snapParsed = JSON.parse(snapshot);
         const changes = findJsonChanges(live?.data ?? [], snapParsed?.data ?? []);
+        const topKeys = new Set([...Object.keys(live ?? {}), ...Object.keys(snapParsed ?? {})]);
+        for (const key of topKeys) {
+          if (key === 'data') continue;
+          if (JSON.stringify(live?.[key]) !== JSON.stringify(snapParsed?.[key])) {
+            changes.push(`  CHANGED top-level '${key}': ${JSON.stringify(snapParsed?.[key])} → ${JSON.stringify(live?.[key])}`);
+          }
+        }
         console.error(`[LingoGeo] ${label} has changed:`);
         for (const line of changes) console.error(line);
         allChanges.push(`${label}:\n${changes.join('\n')}`);
