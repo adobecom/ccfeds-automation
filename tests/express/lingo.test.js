@@ -86,10 +86,10 @@ const {
  */
 async function runLingoGeoTest(page, context, feature) {
   const geo = new LingoGeoBannerPage(page);
-  const pageUrl = resolveLingoGeoPath(feature.path);
+  const pageUrl = resolveLingoGeoPath(feature.path, !!feature.isBacom);
 
-  // Default PREF matches US English row in supported-markets (empty prefix) when unset
-  const prefLang = feature.prefLangCookie ?? '';
+  // Default PREF = English / US row when spec omits prefLangCookie (`en` normalizes to US in flowchart helpers)
+  const prefLang = feature.prefLangCookie ?? 'en';
 
   // 1. Cookie setup
   await context.clearCookies();
@@ -169,14 +169,11 @@ async function runLingoGeoTest(page, context, feature) {
     const copy = LingoGeoBannerPage.getModalCopy(
       geoIp, supportedMarketsData, pagePrefix, marketsData, prefLang,
     );
-    const hasInternationalPref =
-      Object.prototype.hasOwnProperty.call(feature, 'prefLangCookie')
-      && String(feature.prefLangCookie ?? '').trim() !== '';
     const isRegionalPriorityTabUi =
-      (copy.buttons?.length ?? 0) > 1 && hasInternationalPref;
+      !!copy.hasExplicitPriority && (copy.buttons?.length ?? 0) > 1;
 
     if (isRegionalPriorityTabUi) {
-      await geo.assertRegionalPriorityModal({ ...copy, geoIp: feature.region });
+      await geo.assertRegionalPriorityModal({ ...copy, geoIp });
     } else {
       const modalCopy =
         copy.buttons?.length > 1
@@ -202,24 +199,39 @@ test.describe('Lingo-Geo | JSON Snapshot', () => {
       { label: 'markets.json', live: marketsData, file: path.join(SNAPSHOT_DIR, 'markets.snapshot.json') },
     ];
     let failed = false;
+    let allChanges = [];
     for (const { label, live, file } of snapshots) {
       if (!fs.existsSync(file)) {
         fs.writeFileSync(file, JSON.stringify(live, null, 2));
         console.info(`[LingoGeo] Snapshot created for ${label} ✓`);
         continue;
       }
-      const snapshot = fs.readFileSync(file, 'utf8');
+      const snapshot = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
       if (JSON.stringify(live, null, 2) !== snapshot) {
+        if (!live) {
+          console.error(`[LingoGeo] ${label} — live fetch returned null (stage unreachable or JSON missing)`);
+          allChanges.push(`${label}: live fetch returned null`);
+          failed = true;
+          continue;
+        }
         const snapParsed = JSON.parse(snapshot);
         const changes = findJsonChanges(live?.data ?? [], snapParsed?.data ?? []);
+        const topKeys = new Set([...Object.keys(live ?? {}), ...Object.keys(snapParsed ?? {})]);
+        for (const key of topKeys) {
+          if (key === 'data') continue;
+          if (JSON.stringify(live?.[key]) !== JSON.stringify(snapParsed?.[key])) {
+            changes.push(`  CHANGED top-level '${key}': ${JSON.stringify(snapParsed?.[key])} → ${JSON.stringify(live?.[key])}`);
+          }
+        }
         console.error(`[LingoGeo] ${label} has changed:`);
         for (const line of changes) console.error(line);
+        allChanges.push(`${label}:\n${changes.join('\n')}`);
         failed = true;
       } else {
         console.info(`[LingoGeo] ${label}: no changes ✓`);
       }
     }
-    expect(failed, 'JSON snapshot mismatch — delete snapshot files and re-run to update').toBe(false);
+    expect(failed, `JSON snapshot mismatch:\n${allChanges.join('\n\n')}`).toBe(false);
   });
 });
 
@@ -268,7 +280,7 @@ test.describe('Lingo-Geo | Pref Cookie — No Action', () => {
 test.describe('Lingo-Geo | Geo Routing Modal', () => {
   for (const f of modalFeatures) {
     test(f.name, { tag: f.tags.split(' ').filter(Boolean) }, async ({ page, context }) => {
-      test.skip(!!f.skipIntegration, 'Geo modal unreliable on stage for this URL');
+      test.skip(!!f.skipIntegration, `[${f.tcid}] Skipped on stage — unreliable integration for this URL`);
       await runLingoGeoTest(page, context, f);
     });
   }
@@ -464,17 +476,20 @@ test.describe('Lingo-Geo | Playground', () => {
       let supportedMarketsData;
 
       let computed;
+      let httpStatus;
       if (isGeoIpDriven) {
         // No akamaiLocale → server uses real client IP. Skip flowchart-driven UI assertion;
         // detect what actually renders (modal / banner / none) and log it.
-        ({ supportedMarketsData, marketsData } = await geo.navigateAndCaptureJsons(pageUrl));
+        ({ supportedMarketsData, marketsData, httpStatus } = await geo.navigateAndCaptureJsons(pageUrl));
         computed = await geo.detectActualUi();
       } else {
         // akamaiLocale present → full flowchart-driven flow (none / banner / modal)
         ({ marketsData, supportedMarketsData, computed } = await runLingoGeoTest(page, context, playgroundFeature));
       }
 
-      if (isBacom) {
+      if (httpStatus === 404) {
+        console.info(`[LingoGeo] Playground — 404 page, skipping currency check: ${pageUrl}`);
+      } else if (isBacom) {
         console.info(`[LingoGeo] BACOM playground — UI: '${computed}'`);
         console.info('[LingoGeo] Currency for BACOM not present');
       } else if (marketsData) {

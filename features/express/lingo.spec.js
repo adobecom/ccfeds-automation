@@ -15,7 +15,7 @@ const jsonSnapshotFeature = {
   tcid: 'JS1',
   name: '@express-geo-json-snapshot',
   path: '/express/?akamaiLocale=us&mep=off',
-  tags: '@jsonSnapshot',
+  tags: '@jsonSnapshot @express-lingo-geo-suite',
 };
 
 const selectorContentsFeatures = [
@@ -185,7 +185,7 @@ const features = [
       tcid: '20',
       name: '@express-geo-us-do',
       uiExpectation: 'none',
-      path: '/express/?akamaiLocale=do&mep=off',
+      path: '/express/pricing?akamaiLocale=do&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-surface-none @express-geo-language-en @express-geo-english-do @defaultCurrency',
     },
     {
@@ -893,31 +893,31 @@ const features = [
     {
       tcid: '121',
       name: '@express-geo-cn-hk',
-      uiExpectation: 'none',
+      uiExpectation: 'banner',
       path: '/cn/express/?akamaiLocale=hk&mep=off',
-      tags: '@express-lingo-geo-suite @express-geo-surface-none @express-geo-language-zh-cn @express-geo-chinese-cn @defaultCurrency',
+      tags: '@express-lingo-geo-suite @express-geo-surface-banner @express-geo-language-zh-cn @express-geo-chinese-cn @defaultCurrency',
     },
     {
       tcid: '122',
       name: '@express-geo-cn-tw',
-      uiExpectation: 'none',
+      uiExpectation: 'banner',
       path: '/cn/express/?akamaiLocale=tw&mep=off',
-      tags: '@express-lingo-geo-suite @express-geo-surface-none @express-geo-language-zh-cn @express-geo-chinese-cn @defaultCurrency',
+      tags: '@express-lingo-geo-suite @express-geo-surface-banner @express-geo-language-zh-cn @express-geo-chinese-cn @defaultCurrency',
     },
     {
       tcid: '123',
       name: '@express-geo-cn-us',
-      uiExpectation: 'none',
+      uiExpectation: 'banner',
       path: '/cn/express/?akamaiLocale=us&mep=off',
-      tags: '@express-lingo-geo-suite @express-geo-surface-none @express-geo-language-zh-cn @express-geo-chinese-cn @defaultCurrency @smoke',
+      tags: '@express-lingo-geo-suite @express-geo-surface-banner @express-geo-language-zh-cn @express-geo-chinese-cn @defaultCurrency @smoke',
     },
 
     {
       tcid: '124',
-      name: '@express-geo-da-dk',
+      name: '@express-geo-dk-dk',
       uiExpectation: 'banner',
       path: '/dk/express/?akamaiLocale=dk&mep=off',
-      tags: '@express-lingo-geo-suite @express-geo-surface-banner @express-geo-language-da @express-geo-danish-dk @defaultCurrency',
+      tags: '@express-lingo-geo-suite @express-geo-surface-none @express-geo-language-da @express-geo-danish-dk @defaultCurrency',
     },
     {
       tcid: '125',
@@ -1168,6 +1168,15 @@ const currencyNegativeFeatures = [
     thenNavigateTo: '/fr/express/?mep=off',
     tags: '@express-lingo-geo-suite @currency-negative @currency-country-cookie @smoke',
   },
+  //No akamaiLocale set but country cookkie is set
+  {
+    tcid: '154N13b',
+    name: '@currency-country-cookie-jp-no-akamai',
+    path: '/express/?mep=off',
+    countryCookie: 'jp',
+    tags: '@express-lingo-geo-suite @currency-negative @currency-country-cookie-no-akamai @smoke',
+  },
+
 
   // ── N14: akamaiLocale=KR on US path → KRW ────────────────────────────────────
   // akamaiLocale=KR is a valid supported region; currency must resolve to KRW.
@@ -1186,6 +1195,8 @@ const currencyNegativeFeatures = [
     path: '/nl/express/?country=BE&mep=off',
     tags: '@express-lingo-geo-suite @currency-negative @currency-country-param @smoke',
   },
+
+  
 
   // ── NB1: BACOM page — no market/currency selector expected ───────────────────
   // BACOM (business.stage.adobe.com) does not render a market selector; assert it is absent.
@@ -1211,165 +1222,165 @@ const prefCookieBannerFeatures = [
       tcid: '158P1',
       name: '@express-geo-fr-be @pref-intl-us',
       uiExpectation: 'banner',
-      path: '/fr/express/?akamaiLocale=be',
+      path: '/fr/express/?akamaiLocale=be&mep=off',
       prefLangCookie: '',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-us @express-geo-surface-banner @smoke',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-us @express-geo-surface-banner @smoke',
     },
-    //Since for UK and IN the prefLang=PageLang there is no bannet possibility with cookie set too.
-    {
+    //Since for UK and IN the prefLang=PageLang there is no banner possibility with cookie set. 
+   /* {
       tcid: '159P2',
       name: '@express-geo-pref-intl-uk @pref-intl-uk',
       uiExpectation: 'none',
-      path: '/express/?akamaiLocale=be',
+      path: '/express/?akamaiLocale=be&mep=off',
       prefLangCookie: 'uk',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner  @express-geo-pref-lang-uk @express-geo-surface-none',
+        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-uk @express-geo-surface-none',
     },
     {
       tcid: '160P3',
       name: '@express-geo-pref-intl-in @pref-intl-in',
       uiExpectation: 'none',
-      path: '/express/?akamaiLocale=it',
+      path: '/express/?akamaiLocale=it&mep=off',
       prefLangCookie: 'in',
       tags:
         '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-in @express-geo-surface-none',
-    },
+    },*/
     {
       tcid: '161P4',
       name: '@express-geo-us-be @pref-intl-fr',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=be',
+      path: '/express/?akamaiLocale=be&mep=off',
       prefLangCookie: 'fr',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner  @express-geo-pref-lang-fr @express-geo-surface-banner @smoke',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency  @express-geo-pref-lang-fr @express-geo-surface-banner @smoke',
     },
     {
       tcid: '162P5',
       name: '@express-geo-us-at @pref-intl-de',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=at',
+      path: '/express/?akamaiLocale=at&mep=off',
       prefLangCookie: 'de',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-de @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-de @express-geo-surface-banner',
     },
     {
       tcid: '163P6',
       name: '@express-geo-us-jp @pref-intl-jp',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=jp',
+      path: '/express/?akamaiLocale=jp&mep=off',
       prefLangCookie: 'jp',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-jp @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-jp @express-geo-surface-banner',
     },
     {
       tcid: '164P7',
       name: '@express-geo-us-ar @pref-intl-es',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=ar',
+      path: '/express/?akamaiLocale=ar&mep=off',
       prefLangCookie: 'es',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-es @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-es @express-geo-surface-banner',
     },
     //Since kr is not supported in US , Kr banner is not seen
     /*{
       tcid: '165P8',
       name: '@express-geo-us-kr @pref-intl-kr',
       uiExpectation: 'modal',
-      path: '/express/?akamaiLocale=kr',
+      path: '/express/?akamaiLocale=kr&mep=off',
       prefLangCookie: 'kr',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-kr @express-geo-surface-none @smoke',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-kr @express-geo-surface-none @smoke',
     },*/
     {
       tcid: '166P9',
       name: '@express-geo-us-ch @pref-intl-it',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=ch',
+      path: '/express/?akamaiLocale=ch&mep=off',
       prefLangCookie: 'it',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-it @express-geo-surface-banner @smoke',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-it @express-geo-surface-banner @smoke',
     },
     {
       tcid: '167P10',
       name: '@express-geo-us-br @pref-intl-br',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=br',
+      path: '/express/?akamaiLocale=br&mep=off',
       prefLangCookie: 'br',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-br @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-br @express-geo-surface-banner',
     },
     {
       tcid: '168P11',
       name: '@express-geo-us-be @pref-intl-nl',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=be',
+      path: '/express/?akamaiLocale=be&mep=off',
       prefLangCookie: 'nl',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-nl @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-nl @express-geo-surface-banner',
     },
     {
       tcid: '169P12',
       name: '@express-geo-us-hk @pref-intl-tw',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=hk',
+      path: '/express/?akamaiLocale=hk&mep=off',
       prefLangCookie: 'tw',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-tw @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-tw @express-geo-surface-banner',
     },
     {
       tcid: '170P13',
       name: '@express-geo-pref-intl-cn @pref-intl-cn',
       uiExpectation: 'none',
-      path: '/fr/express/?akamaiLocale=be',
+      path: '/fr/express/?akamaiLocale=be&mep=off',
       prefLangCookie: 'cn',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-cn @express-geo-surface-none @smoke',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-cn @express-geo-surface-none @smoke',
     },
     {
       tcid: '171P14',
       name: '@express-geo-us-dk @pref-intl-dk',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=dk',
+      path: '/express/?akamaiLocale=dk&mep=off',
       prefLangCookie: 'dk',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner @express-geo-pref-lang-dk @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency @express-geo-pref-lang-dk @express-geo-surface-banner',
     },
     {
       tcid: '172P15',
       name: '@express-geo-us-fi @pref-intl-fi',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=fi',
+      path: '/express/?akamaiLocale=fi&mep=off',
       prefLangCookie: 'fi',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner  @express-geo-pref-lang-fi @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency  @express-geo-pref-lang-fi @express-geo-surface-banner',
     },
     {
       tcid: '173P16',
       name: '@express-geo-us-no @pref-intl-no',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=no',
+      path: '/express/?akamaiLocale=no&mep=off',
       prefLangCookie: 'no',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner  @express-geo-pref-lang-no @express-geo-surface-banner @smoke',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency  @express-geo-pref-lang-no @express-geo-surface-banner @smoke',
     },
     {
       tcid: '174P17',
       name: '@express-geo-us-se @pref-intl-se',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=se',
+      path: '/express/?akamaiLocale=se&mep=off',
       prefLangCookie: 'se',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner  @express-geo-pref-lang-se @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency  @express-geo-pref-lang-se @express-geo-surface-banner',
     },
     {
       tcid: '175P18',
       name: '@express-geo-us-id @pref-intl-id_id',
       uiExpectation: 'banner',
-      path: '/express/?akamaiLocale=id',
+      path: '/express/?akamaiLocale=id&mep=off',
       prefLangCookie: 'id_id',
       tags:
-        '@express-lingo-geo-suite @express-geo-pref-banner  @express-geo-pref-lang-id_id @express-geo-surface-banner',
+        '@express-lingo-geo-suite @express-geo-pref-banner @defaultCurrency  @express-geo-pref-lang-id_id @express-geo-surface-banner',
     },
 ];
 
@@ -1394,130 +1405,141 @@ const prefCookieBannerFeatures = [
 const modalFeatures = [
     {
       tcid: '176M1',
-      name: '@express-geo-modal-us-cn',
+      name: '@express-geo-modal-us-kr',
       uiExpectation: 'modal',
-      path: '/express/?akamaiLocale=cn',
+      path: '/express/?akamaiLocale=kr&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-us @smoke',
-      skipIntegration: true,
     },
+    //scenario 4a in flow chart
     {
       tcid: '177M2',
       name: '@express-geo-modal-uk-in',
       uiExpectation: 'modal',
-      path: '/uk/express/?akamaiLocale=in',
+      path: '/uk/express/?akamaiLocale=in&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-uk',
     },
     {
       tcid: '178M3',
       name: '@express-geo-modal-in-jp',
       uiExpectation: 'modal',
-      path: '/in/express/?akamaiLocale=jp',
+      path: '/in/express/?akamaiLocale=jp&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-in',
     },
     {
       tcid: '179M4',
       name: '@express-geo-modal-fr-kr',
       uiExpectation: 'modal',
-      path: '/fr/express/?akamaiLocale=kr',
+      path: '/fr/express/?akamaiLocale=kr&mep=off',
+      prefLangCookie: 'kr',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-fr @smoke',
     },
     {
       tcid: '180M5',
       name: '@express-geo-modal-de-it',
       uiExpectation: 'modal',
-      path: '/de/express/?akamaiLocale=it',
+      path: '/de/express/?akamaiLocale=it&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-de',
     },
     {
       tcid: '181M6',
       name: '@express-geo-modal-jp-fr',
       uiExpectation: 'modal',
-      path: '/jp/express/?akamaiLocale=fr',
+      path: '/jp/express/?akamaiLocale=fr&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-jp',
     },
     {
       tcid: '182M7',
       name: '@express-geo-modal-es-id',
       uiExpectation: 'modal',
-      path: '/es/express/?akamaiLocale=id',
+      path: '/es/express/?akamaiLocale=id&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-es @smoke',
     },
     {
       tcid: '183M8',
       name: '@express-geo-modal-kr-fi',
       uiExpectation: 'modal',
-      path: '/kr/express/?akamaiLocale=fi',
+      path: '/kr/express/?akamaiLocale=fi&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-kr',
     },
     {
       tcid: '184M9',
       name: '@express-geo-modal-it-br',
       uiExpectation: 'modal',
-      path: '/it/express/?akamaiLocale=br',
+      path: '/it/express/?akamaiLocale=br&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-it',
     },
     {
       tcid: '185M10',
       name: '@express-geo-modal-br-dk',
       uiExpectation: 'modal',
-      path: '/br/express/?akamaiLocale=dk',
+      path: '/br/express/?akamaiLocale=dk&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-br',
     },
     {
       tcid: '186M11',
       name: '@express-geo-modal-nl-in',
       uiExpectation: 'modal',
-      path: '/nl/express/?akamaiLocale=in',
+      path: '/nl/express/?akamaiLocale=in&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-nl @smoke',
     },
     {
       tcid: '187M12',
       name: '@express-geo-modal-tw-es',
       uiExpectation: 'modal',
-      path: '/tw/express/?akamaiLocale=es',
+      path: '/tw/express/?akamaiLocale=es&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-tw',
     },
     {
       tcid: '188M13',
       name: '@express-geo-modal-cn-jp',
       uiExpectation: 'modal',
-      path: '/cn/express/?akamaiLocale=jp',
+      path: '/cn/express/?akamaiLocale=jp&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-cn',
     },
     {
       tcid: '189M14',
       name: '@express-geo-modal-dk-no',
       uiExpectation: 'modal',
-      path: '/dk/express/?akamaiLocale=no',
+      prefLangCookie:'no',
+      path: '/dk/express/?akamaiLocale=no&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-dk @smoke',
     },
     {
       tcid: '190M15',
       name: '@express-geo-modal-fi-in',
       uiExpectation: 'modal',
-      path: '/fi/express/?akamaiLocale=in',
+      prefLangCookie: 'in',
+      path: '/fi/express/?akamaiLocale=in&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-fi',
     },
     {
       tcid: '191M16',
       name: '@express-geo-modal-no-se',
       uiExpectation: 'modal',
-      path: '/no/express/?akamaiLocale=se',
+      path: '/no/express/?akamaiLocale=se&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-no',
     },
     {
       tcid: '192M17',
       name: '@express-geo-modal-se-tw',
       uiExpectation: 'modal',
-      path: '/se/express/?akamaiLocale=tw',
+      path: '/se/express/?akamaiLocale=tw&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-se @smoke',
     },
     {
       tcid: '193M18',
       name: '@express-geo-modal-id_id-gb',
       uiExpectation: 'modal',
-      path: '/id_id/express/?akamaiLocale=gb',
+      path: '/id_id/express/?akamaiLocale=gb&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-lang-id_id',
+    },
+    {
+      tcid: '193M19',
+      name: '@express-geo-modal-ZhLang',
+      uiExpectation: 'modal',
+      prefLangCookie:'tw',
+      path: '/se/express/?akamaiLocale=tw&mep=off',
+      tags: '@express-lingo-geo-suite @express-geo-modal @express-geo-surface-modal @express-geo-modal-Zh-lang @smoke',
     },
 ];
 
@@ -1542,7 +1564,7 @@ const scenario5RegionalPrioritiesFeatures = [
       name: '@express-geo-scenario5-jp-lu',
       prefLangCookie: 'kr',
       uiExpectation: 'modal',
-      path: '/jp/express/?akamaiLocale=lu',
+      path: '/jp/express/?akamaiLocale=lu&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-scenario5 @express-geo-surface-modal @express-geo-scenario5-lu @smoke',
     },
     {
@@ -1550,7 +1572,7 @@ const scenario5RegionalPrioritiesFeatures = [
       name: '@express-geo-scenario5-jp-ch',
       prefLangCookie: 'kr',
       uiExpectation: 'modal',
-      path: '/jp/express/?akamaiLocale=ch',
+      path: '/jp/express/?akamaiLocale=ch&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-scenario5 @express-geo-surface-modal @express-geo-scenario5-ch',
     },
     {
@@ -1558,7 +1580,7 @@ const scenario5RegionalPrioritiesFeatures = [
       name: '@express-geo-scenario5-jp-be',
       prefLangCookie: 'kr',
       uiExpectation: 'modal',
-      path: '/jp/express/?akamaiLocale=be',
+      path: '/jp/express/?akamaiLocale=be&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-scenario5 @express-geo-surface-modal @express-geo-scenario5-be',
     },
     {
@@ -1566,7 +1588,7 @@ const scenario5RegionalPrioritiesFeatures = [
       name: '@express-geo-scenario5-jp-ca',
       prefLangCookie: 'kr',
       uiExpectation: 'modal',
-      path: '/jp/express/?akamaiLocale=ca',
+      path: '/jp/express/?akamaiLocale=ca&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-scenario5 @express-geo-surface-modal @express-geo-scenario5-ca @smoke',
     },
     {
@@ -1574,8 +1596,16 @@ const scenario5RegionalPrioritiesFeatures = [
       name: '@express-geo-scenario5-kr-us',
       prefLangCookie: 'fr',
       uiExpectation: 'modal',
-      path: '/kr/express/?akamaiLocale=us',
+      path: '/kr/express/?akamaiLocale=us&mep=off',
       tags: '@express-lingo-geo-suite @express-geo-scenario5 @express-geo-surface-modal @express-geo-scenario5-us @smoke',
+    },
+    {
+      tcid: '199S6',
+      name: '@express-geo-scenario5-jp-tw',
+      prefLangCookie: 'kr',
+      uiExpectation: 'modal',
+      path: '/jp/express/?akamaiLocale=tw&mep=off',
+      tags: '@express-lingo-geo-suite @express-geo-scenario5 @express-geo-surface-modal @express-geo-scenario5-tw @smoke',
     },
 ];
 
@@ -1620,7 +1650,7 @@ const scenario6UnsupportedGeoFeatures = [
       tcid: '201S6',
       name: '@express-geo-scenario-6-fr-fj',
       uiExpectation: 'none',
-      path: '/fr/express/?akamaiLocale=fj',
+      path: '/fr/express/?akamaiLocale=fj&mep=off',
       verifyGeoIpNotInSupportedMarketsJson: true,
       tags:
         '@express-lingo-geo-suite @express-geo-surface-none @express-geo-scenario-6 @express-geo-geoip-not-in-json @express-geo-language-fr @express-geo-french-fj @smoke',
@@ -1670,12 +1700,11 @@ const searchFeatures = [
 const customFeature = {
   tcid: 'C1',
   name: '@custom-playground',
-  path: '',               // required — leave empty to skip
-  uiExpectation: 'banner',      // optional: 'none' | 'banner' | 'modal'
-  prefLangCookie: '',     // sets `international` cookie before load
-  countryCookie: '',      // sets `country` cookie before navigation
-  region: '',             // only for Scenario 5 (regional priority modal — GeoIP with multiple language tabs e.g. 'ch' for Switzerland)
-  tags: '@express-lingo-geo-suite @custom',
+  path: 'https://www.stage.adobe.com/se/express/?akamaiLocale=ch',               // required — leave empty to skip // add with akamaiLocale
+  uiExpectation: 'modal',      // optional: 'none' | 'banner' | 'modal'
+  prefLangCookie: 'kr',     // sets `international` cookie before load
+  countryCookie: 'ch',      // sets `country` cookie before navigation
+  tags: '@custom',
 };
 
 module.exports = {

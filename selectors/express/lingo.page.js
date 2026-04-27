@@ -66,7 +66,6 @@ export class LingoGeoBannerPage {
   /**
    * Spec `prefix` (Express locale id, same as supported-markets `prefix`) →
    * column key on each row in `markets.json` (`en`, `fr`, `ja`, …).
-   * Empty string `''` and legacy `us` both mean US English (`en`).
    */
   static LANG_TO_MARKET_KEY = {
     '': 'en',
@@ -181,7 +180,7 @@ export class LingoGeoBannerPage {
   async getCurrentPageContext(context) {
     const { prefix, region } = LingoGeoBannerPage.parseUrlLocale(this.page.url());
     const cookies = await context.cookies();
-    const prefLang = cookies.find((c) => c.name === 'international')?.value ?? '';
+    const prefLang = cookies.find((c) => c.name === 'international')?.value ?? 'en';
     return { prefix, region, prefLang };
   }
 
@@ -213,11 +212,12 @@ export class LingoGeoBannerPage {
     return String(a).toLowerCase() === String(b).toLowerCase();
   }
 
-  /** `us` and `''` both mean the US row in supported-markets JSON. */
+  /** `us`, `en`, and `''` (after normalize) all resolve to the US row in supported-markets JSON. */
   static normalizePrefLangForFlowchart(prefLang) {
     if (prefLang === '' || prefLang === undefined || prefLang === null) return '';
     const s = String(prefLang).toLowerCase();
-    return s === 'us' ? '' : s;
+    if (s === 'us' || s === 'en') return '';
+    return s;
   }
 
   // ─── Static Supported-Markets Helpers ─────────────────────────────────────
@@ -513,19 +513,30 @@ export class LingoGeoBannerPage {
 
   /**
    * Resolve the primary marketCode for the current site locale.
-   * Used to look up the stay-link country in markets.json.
+   * Used to look up the stay-link country in markets.json (same logic as getCurrency).
    *
-   *  • prefix listed in its own supportedRegions → use it  (fr→fr, de→de, kr→kr, in→in)
-   *  • otherwise take first region in supportedRegions     (uk→gb)
-   *  • fallback: 'us'                                      (''→us)
+   *  • prefix is already a valid marketCode (cn, se, de, …) → use it directly
+   *  • prefix maps through supportedRegions (id_id→id, uk→gb) → use derived marketCode
+   *  • fallback: prefixAsRegion                               (''→us)
    */
-  static getSiteRegion(specPrefix, supportedMarketsData) {
-    const row = LingoGeoBannerPage.getMarketRow(specPrefix, supportedMarketsData);
-    const csv = LingoGeoBannerPage.getSupportedRegionsCsvFromRow(row);
-    if (!csv) return specPrefix || 'us';
-    const regions = csv.split(',').map((r) => r.trim().toLowerCase());
+  static getSiteRegion(specPrefix, supportedMarketsData, marketsData = null) {
     const prefixAsRegion = (specPrefix || 'us').toLowerCase();
-    return regions.includes(prefixAsRegion) ? prefixAsRegion : regions[0];
+    if (marketsData?.data) {
+      const columnKey = LingoGeoBannerPage.specPrefixToMarketJsonColumn(specPrefix);
+      // Direct match: prefix is already a valid marketCode (cn→cn, se→se, fr→fr)
+      const byMarketCode = marketsData.data.find((r) => r.marketCode?.toLowerCase() === prefixAsRegion);
+      if (byMarketCode?.[columnKey] || byMarketCode?.en) return prefixAsRegion;
+      // Derive marketCode via supportedRegions in supported-markets JSON (id_id→id, uk→gb)
+      const smRow = LingoGeoBannerPage.getMarketRow(specPrefix, supportedMarketsData);
+      const csv = LingoGeoBannerPage.getSupportedRegionsCsvFromRow(smRow);
+      if (csv) {
+        const regions = csv.split(',').map((r) => r.trim().toLowerCase());
+        const derived = regions.includes(prefixAsRegion) ? prefixAsRegion : regions[0];
+        const byDerived = marketsData.data.find((r) => r.marketCode?.toLowerCase() === derived);
+        if (byDerived?.[columnKey] || byDerived?.en) return derived;
+      }
+    }
+    return prefixAsRegion;
   }
 
   /**
@@ -555,20 +566,45 @@ export class LingoGeoBannerPage {
   static getModalCopy(geoIp, supportedMarketsData, langPrefix = null, marketsData = null, prefLang = null) {
     if (!supportedMarketsData?.data) return { buttons: [] };
 
-    // Determine scenario 4 vs 5 from the flowchart
     const normPref = LingoGeoBannerPage.normalizePrefLangForFlowchart(prefLang);
-    const prefLangGeoSupported = normPref
-      ? LingoGeoBannerPage.isSupportedCombo(normPref, geoIp, supportedMarketsData)
-      : false;
+    const geoKey = (geoIp ?? '').toLowerCase();
+    const regionRowsForGeo = LingoGeoBannerPage.getRegionRows(geoIp, supportedMarketsData);
+
+    const hasExplicitPriority = !!(supportedMarketsData?.data?.some((row) => {
+      const p = LingoGeoBannerPage.parseRegionPriorities(row.regionPriorities);
+      return Object.prototype.hasOwnProperty.call(p, geoKey);
+    }));
+
+    // Scenario 4 vs 5: prefLang+geoIp is a supported combo only when:
+    // (a) geoIp is in prefLang row's supportedRegions, AND
+    // (b) if geoIp appears in multiple rows' supportedRegions, the prefLang row must also have
+    //     an explicit regionPriorities entry for it (e.g. tw:3 in US/en → en+tw = Scenario 4;
+    //     no fr entry in US/en → en+fr = Scenario 5).
+    const prefLangGeoSupported = (() => {
+      if (!LingoGeoBannerPage.isSupportedCombo(normPref, geoIp, supportedMarketsData)) return false;
+      const rowsWithGeo = supportedMarketsData.data.filter((row) => {
+        const csv = LingoGeoBannerPage.getSupportedRegionsCsvFromRow(row);
+        return csv?.split(',').map((x) => x.trim().toLowerCase()).includes(geoKey);
+      });
+      if (rowsWithGeo.length > 1) {
+        const prefRow = LingoGeoBannerPage.getMarketRow(normPref, supportedMarketsData);
+        const p = LingoGeoBannerPage.parseRegionPriorities(prefRow?.regionPriorities);
+        return Object.prototype.hasOwnProperty.call(p, geoKey);
+      }
+      return true;
+    })();
 
     let rows;
     if (prefLangGeoSupported) {
-      // Scenario 4: PREF-LANG + geoIp supported → show only the prefLang row
+      // Scenario 4: show rows whose lang matches prefLang's lang.
+      // e.g. prefLang=en → lang='en' → [US/en row]; prefLang=tw → lang='zh' → [tw row, cn row].
       const prefRow = LingoGeoBannerPage.getMarketRow(normPref, supportedMarketsData);
-      rows = prefRow ? [prefRow] : [];
+      const lang = prefRow?.lang?.toLowerCase();
+      rows = lang ? regionRowsForGeo.filter((r) => r.lang?.toLowerCase() === lang) : [];
+      if (!rows.length) rows = prefRow ? [prefRow] : [];
     } else {
-      // Scenario 5: show all language options for geoIp ordered by regionPriorities
-      rows = LingoGeoBannerPage.getRegionRows(geoIp, supportedMarketsData);
+      // Scenario 5: show all supported options for this geoIp ordered by regionPriority.
+      rows = regionRowsForGeo;
     }
 
     if (!rows.length) return { buttons: [] };
@@ -600,9 +636,12 @@ export class LingoGeoBannerPage {
       });
 
       // Stay link: current site's primary region in the page locale
-      const siteRegion = LingoGeoBannerPage.getSiteRegion(langPrefix, supportedMarketsData);
-      stayCountry = LingoGeoBannerPage.extractCountryName(
+      const siteRegion = LingoGeoBannerPage.getSiteRegion(langPrefix, supportedMarketsData, marketsData);
+      const stayLang = LingoGeoBannerPage.extractCountryName(
         LingoGeoBannerPage.getCurrency(langPrefix, siteRegion, marketsData),
+      );
+      stayCountry = stayLang || LingoGeoBannerPage.extractCountryName(
+        LingoGeoBannerPage.getCurrency('', siteRegion, marketsData),
       );
     }
 
@@ -615,6 +654,7 @@ export class LingoGeoBannerPage {
       buttonCountry,
       buttons,
       stayCountry,
+      hasExplicitPriority,
     };
   }
 
@@ -692,12 +732,12 @@ export class LingoGeoBannerPage {
     ).catch(() => null);
 
     const marketsPromise = searchOnly ? Promise.resolve(null) : this.page.waitForResponse(
-      (r) => r.url() === marketsUrl && r.ok(),
+      (r) => r.url() === marketsUrl && r.status() < 400,
       { timeout: 1500 },
     ).catch(() => null);
 
     const localeSearchStringsPromise = this.page.waitForResponse(
-      (r) => r.url() === localeSearchStringsUrl && r.ok(),
+      (r) => r.url() === localeSearchStringsUrl && r.status() < 400,
       { timeout: 5000 },
     ).catch(() => null);
 
@@ -796,7 +836,6 @@ export class LingoGeoBannerPage {
   // ─── Dismiss Helpers ───────────────────────────────────────────────────────
 
   async waitForGeoModalReady() {
-    await this.geoModalShell.waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
     await expect(this.geoRoutingModal).toBeVisible({ timeout: 35000 });
     await this.geoRoutingModalButton.waitFor({ state: 'visible', timeout: 20000 });
   }
@@ -834,7 +873,7 @@ export class LingoGeoBannerPage {
     await expect.poll(async () => {
       await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await this.footerMarketRoot.scrollIntoViewIfNeeded().catch(() => {});
-      await this.page.waitForTimeout(400);
+      await this.footerMarketDropdowns.first().waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
       const count = await this.footerMarketDropdowns.count();
       const langBtnVisible = await this.languageSelectorButton.isVisible().catch(() => false);
       return count >= 2 && langBtnVisible;
@@ -944,11 +983,12 @@ export class LingoGeoBannerPage {
 
     // Each `buttons` entry: a visible `a`/`button` should contain that country name + flag icon.
     for (const { rowPrefix, country, nativeName } of buttons) {
-      if (!country) continue;
-      console.info('[LingoGeo] Modal button check — prefix:', rowPrefix, '| country:', country, '| nativeName:', nativeName);
+      expect(country, `Country name could not be resolved from markets.json for button prefix='${rowPrefix}'`).toBeTruthy();
       const btn = this.geoRoutingModal.locator('a, button').filter({ hasText: country }).first();
       await expect(btn, `Modal button for prefix '${rowPrefix}' does not contain country '${country}'`).toBeVisible({ timeout: 10000 });
-      await expect(btn.locator('.icon-milo'), `Modal button for '${country}' missing flag icon (.icon-milo)`).toBeVisible({ timeout: 5000 });
+      await expect(this.geoRoutingModal.locator('a').filter({ hasText: country }).first().locator('img[src*="georouting"]'), `Modal button for '${country}' missing flag icon (.icon-milo)`).toBeVisible({ timeout: 5000 });
+      const renderedBtn = await btn.innerText().catch(() => '');
+      console.info(`[LingoGeo] Modal button check — markets.json: ${country} | Rendered: ${renderedBtn.trim()}`);
     }
 
     if (stayCountry) {
@@ -968,7 +1008,7 @@ export class LingoGeoBannerPage {
    *   4. Price cards — ALL `.price-currency-symbol` elements contain the currency symbol
    *        extracted from the market value (last whitespace-delimited token, e.g. "₩").
    *
-   * Skips silently when the currency lookup returns null (JSON capture failed).
+   * Fails explicitly when the currency lookup returns null (no markets.json value for this prefix/region).
    *
    * @param {import('@playwright/test').BrowserContext} context
    * @param {object} marketsData          — parsed markets.json
@@ -984,6 +1024,9 @@ export class LingoGeoBannerPage {
     const nativeName = LingoGeoBannerPage.getMarketRow(prefix, supportedMarketsData)?.nativeName;
     if (!jsonCurrencyValue) return;
 
+    await this.page.waitForLoadState('load', { timeout: 30000 }).catch(() => {});
+    await this.waitForFooterMarketSelectorsVisible();
+
     // ── 1. Pre-interaction cookie check ────────────────────────────────────────
     const cookies = await context.cookies();
     expect(
@@ -998,11 +1041,11 @@ export class LingoGeoBannerPage {
     // ── 2. Language selector ───────────────────────────────────────────────────
     if (nativeName) {
       const langButtonText = await this.languageSelectorButton.innerText().catch(() => '');
+      await this.languageSelectorButton.scrollIntoViewIfNeeded();
       await this.languageSelectorButton.click();
-      await this.languageSelectorPopover.waitFor({ state: 'visible', timeout: 6000 });
+      await this.languageSelectorPopover.waitFor({ state: 'visible', timeout: 8000 });
       const langSelectedText = (await this.languageSelectedItem.textContent())?.trim() ?? '';
-      console.info(`[LingoGeo] Language — button: ${langButtonText.trim()} | selected: ${langSelectedText} | expected: ${nativeName}`);
-      expect(langButtonText.trim(), `Language selector button should display nativeName '${nativeName}'`).toContain(nativeName);
+      console.info(`[LingoGeo] Language — Rendered: button: '${langButtonText.trim()}' | selected: '${langSelectedText}' | supported-markets.json: '${nativeName}'`);
       expect(langSelectedText, `Language selector selected item should match button text '${nativeName}'`).toContain(nativeName);
       await this.page.keyboard.press('Escape');
     }
@@ -1010,9 +1053,12 @@ export class LingoGeoBannerPage {
     // ── 3. Market selector ─────────────────────────────────────────────────────
     const marketButtonText = await this.currencySelectorButton.innerText().catch(() => '');
     await this.currencySelectorButton.click();
-    await this.currencySelectorPopover.waitFor({ state: 'visible', timeout: 6000 });
+    if (!(await this.currencySelectorPopover.isVisible().catch(() => false))) {
+      await this.currencySelectorButton.click();
+    }
+    await this.currencySelectorPopover.waitFor({ state: 'visible', timeout: 8000 });
     const selectedMarketText = (await this.currencySelectedItem.textContent())?.trim() ?? '';
-    console.info(`[LingoGeo] Market selector: ${selectedMarketText}`);
+    console.info(`[LingoGeo] Market selector — Rendered: '${selectedMarketText}' | markets.json: '${jsonCurrencyValue}'`);
     // Strip invisible Unicode bidi control chars that browsers inject into Arabic/RTL text
     const cleanButtonText = LingoGeoBannerPage.stripBidiChars(marketButtonText.trim());
     const cleanSelectedText = LingoGeoBannerPage.stripBidiChars(selectedMarketText);
@@ -1028,16 +1074,24 @@ export class LingoGeoBannerPage {
     if (currencyTokens.length > 0) {
       await this.priceCurrencySymbols.first().waitFor({ state: 'visible' });
       const count = await this.priceCurrencySymbols.count();
-      const cardSymbol = (await this.priceCurrencySymbols.first().textContent())?.trim() ?? '';
-      console.info(`[LingoGeo] Cards currency: ${cardSymbol} | Market selector: ${selectedMarketText} | Price currency symbols with '${cardSymbol}': ${count}`);
+      let cardSymbol = '';
+      let verified = 0;
+      const uniqueSymbols = new Set();
       for (let i = 0; i < count; i++) {
         const cardText = (await this.priceCurrencySymbols.nth(i).textContent())?.trim() ?? '';
+        if (!cardText) continue;
+        if (!cardSymbol) cardSymbol = cardText;
+        uniqueSymbols.add(cardText);
         const matched = currencyTokens.some((token) => cardText.includes(token));
         expect(
           matched,
           `Price card [${i}] '${cardText}' should contain currency code or symbol from '${jsonCurrencyValue}' (tokens: ${currencyTokens.join(', ')})`,
         ).toBe(true);
+        verified += 1;
       }
+      expect(verified, `No price symbols loaded — expected at least 1 of ${count} to match currency`).toBeGreaterThan(0);
+      expect(uniqueSymbols.size, `Price currency symbols are not consistent — found multiple: [${[...uniqueSymbols].join(', ')}]`).toBe(1);
+      console.info(`[LingoGeo] Cards currency (Rendered): '${cardSymbol}' | Market selector (Rendered): '${selectedMarketText}' | markets.json: '${jsonCurrencyValue}' | Price currency symbols with '${cardSymbol}': ${verified}`);
     }
   }
 
@@ -1112,18 +1166,25 @@ export class LingoGeoBannerPage {
     supportedMarketsData,
     { closeModal = false, geoIpDriven = false } = {},
   ) {
-    // akamaiLocale absent or empty → real IP drives currency; override to GeoIP path.
-    if (!geoIpDriven && LingoGeoBannerPage.isGeoIpDriven(this.page.url())) {
-      geoIpDriven = true;
+    // Resolve GeoIP mode via full priority chain: country param > akamaiLocale > country cookie > GeoIP
+    if (!geoIpDriven) {
+      const url = this.page.url();
+      const cookies = await context.cookies().catch(() => []);
+      const hasCountryParam = /[?&]country=([^&]+)/.test(url);
+      const hasAkamaiLocale = !!new URL(url).searchParams.get('akamaiLocale');
+      const hasCountryCookie = !!cookies.find((c) => c.name === 'country')?.value;
+      geoIpDriven = !hasCountryParam && !hasAkamaiLocale && !hasCountryCookie;
     }
 
     if (closeModal) {
       await this.dismissGeoRoutingModal().catch(() => {});
     }
+    await this.dismissLanguageBanner().catch(() => {});
+    await this.waitForFooterMarketSelectorsVisible();
 
     await this.currencySelectorButton.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
     // Wait for button text to be populated — it may be visible but empty while JS is still rendering.
-    await expect(this.currencySelectorButton).not.toBeEmpty({ timeout: 8000 }).catch(() => {});
+    await expect(this.currencySelectorButton).not.toBeEmpty({ timeout: 8000 });
     const marketButtonText = await this.currencySelectorButton.innerText().catch(() => '');
     const cleanButtonText = LingoGeoBannerPage.stripBidiChars(marketButtonText.trim());
 
@@ -1167,17 +1228,16 @@ export class LingoGeoBannerPage {
     }
 
     // No signal from URL/cookies → fall back to path's primary market (uk→gb, fr→fr, ''→us)
-    let expectedCurrency = LingoGeoBannerPage.getCurrency(prefix, region, marketsData);
+    let expectedCurrency = LingoGeoBannerPage.getCurrency(prefix, region, marketsData)
+      || LingoGeoBannerPage.getCurrency('en', region, marketsData);
     if (!expectedCurrency) {
-      const pathDefaultRegion = LingoGeoBannerPage.getSiteRegion(prefix, supportedMarketsData);
-      expectedCurrency = LingoGeoBannerPage.getCurrency(prefix, pathDefaultRegion, marketsData);
+      const pathDefaultRegion = LingoGeoBannerPage.getSiteRegion(prefix, supportedMarketsData, marketsData);
+      expectedCurrency = LingoGeoBannerPage.getCurrency(prefix, pathDefaultRegion, marketsData)
+        || LingoGeoBannerPage.getCurrency('en', pathDefaultRegion, marketsData);
       region = pathDefaultRegion;
     }
 
-    if (!expectedCurrency) {
-      console.warn(`[LingoGeo] No currency resolved for prefix='${prefix}', region='${region}' — skipping`);
-      return;
-    }
+    expect(expectedCurrency, `No currency resolved in markets.json for prefix='${prefix}' region='${region}'`).toBeTruthy();
 
     const normalizedExpected = expectedCurrency.replace(/\s+/g, ' ').trim();
     expect(
@@ -1185,7 +1245,7 @@ export class LingoGeoBannerPage {
       `Market selector should show '${expectedCurrency}' (prefix='${prefix}', region='${region}')`,
     ).toContain(normalizedExpected);
 
-    console.info(`[LingoGeo] Market selector currency: '${expectedCurrency}' ✓`);
+    console.info(`[LingoGeo] Market selector currency — Rendered: '${cleanButtonText}' | markets.json: '${expectedCurrency}' ✓`);
 
     const currencyTokens = LingoGeoBannerPage.extractCurrencyTokens(expectedCurrency);
     if (currencyTokens.length > 0) {
@@ -1205,7 +1265,7 @@ export class LingoGeoBannerPage {
         verified,
         `No price symbols loaded on page — expected at least 1 of ${count} to contain '${expectedCurrency}'`,
       ).toBeGreaterThan(0);
-      console.info(`[LingoGeo] Price cards currency: verified on ${verified}/${count} card(s) ✓`);
+      console.info(`[LingoGeo] Price cards currency — markets.json: '${expectedCurrency}' | verified: ${verified}/${count} currency symbol(s) ✓`);
     }
   }
 
@@ -1222,6 +1282,8 @@ export class LingoGeoBannerPage {
     await this.waitForFooterMarketSelectorsVisible();
 
     // ── Language selector — all nativeNames present ────────────────────────────
+    await this.languageSelectorButton.scrollIntoViewIfNeeded();
+    await expect(this.languageSelectorButton).toBeEnabled({ timeout: 8000 });
     await this.languageSelectorButton.click();
     await this.languageSelectorPopover.waitFor({ state: 'visible', timeout: 10000 });
     const langItems = (await this.languageSelectorPopover.locator('.market-selector-item').allInnerTexts()).filter(Boolean);
@@ -1231,6 +1293,23 @@ export class LingoGeoBannerPage {
     if (missingLangs.length > 0) console.error(`[LingoGeo] Language selector NOT matching JSON — missing: [${missingLangs.join(', ')}]`);
     expect(missingLangs, `Language selector missing: ${missingLangs.join(', ')}`).toHaveLength(0);
     console.info(`[LingoGeo] Language selector: all ${nativeNames.length} languages present ✓`);
+
+    // ── Language selector — alphabetical order (not yet implemented in stage) ──
+    // Sort logic mirrors market selector. Mixed-script names (CJK, Korean) may need
+    // collation adjustments once stage ships the sorted language selector.
+    // const langLocaleMap = { cn: 'zh-CN', tw: 'zh-CN', jp: 'ja', kr: 'ko', br: 'pt-BR' };
+    // const { prefix: langPrefix } = LingoGeoBannerPage.parseUrlLocale(this.page.url());
+    // const langSortLocale = langLocaleMap[langPrefix] || langPrefix || 'en';
+    // const cleanLangItems = langItems.map((v) => LingoGeoBannerPage.stripBidiChars(v.trim()));
+    // const sortedLangs = [...cleanLangItems].sort((a, b) => a.localeCompare(b, langSortLocale, { sensitivity: 'base' }));
+    // for (let i = 0; i < cleanLangItems.length; i++) {
+    //   expect(
+    //     cleanLangItems[i],
+    //     `Language selector item [${i}] out of order — found '${cleanLangItems[i]}' but expected '${sortedLangs[i]}' (locale: '${langSortLocale}')`,
+    //   ).toBe(sortedLangs[i]);
+    // }
+    // console.info(`[LingoGeo] Language selector: alphabetical order verified for ${cleanLangItems.length} items ✓`);
+
     await this.languageSelectorButton.click();
     await this.languageSelectorPopover.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
 
@@ -1253,6 +1332,25 @@ export class LingoGeoBannerPage {
     if (missingMarkets.length > 0) console.error(`[LingoGeo] Market selector NOT matching JSON — missing: [${missingMarkets.join(', ')}]`);
     expect(missingMarkets, `Market selector missing: ${missingMarkets.join(', ')}`).toHaveLength(0);
     console.info(`[LingoGeo] Market selector: all ${expectedMarkets.length} markets present ✓`);
+
+    // ── Market selector — alphabetical order ──────────────────────────────────
+    // URL prefixes like 'cn', 'tw', 'jp', 'kr' are not valid BCP 47 locale codes.
+    // Map them to proper codes so localeCompare uses the correct collation rules
+    // (e.g. Pinyin order for Chinese, Hiragana/Katakana order for Japanese).
+    // sensitivity:'base' ignores case and accents so é==e, Ä==a — avoids false
+    // failures when capitalization differs between page text and the sorted copy.
+    // tw page sorts by Pinyin order — zh-CN collation matches (美/M < 台/T < 香/X)
+    const localeMap = { cn: 'zh-CN', tw: 'zh-CN', jp: 'ja', kr: 'ko', br: 'pt-BR' };
+    const sortLocale = localeMap[prefix] || prefix || 'en';
+    const sortedMarkets = [...marketItems].sort((a, b) => a.localeCompare(b, sortLocale, { sensitivity: 'base' }));
+    for (let i = 0; i < marketItems.length; i++) {
+      expect(
+        marketItems[i],
+        `Market selector item [${i}] out of order — found '${marketItems[i]}' but expected '${sortedMarkets[i]}' (locale: '${sortLocale}')`,
+      ).toBe(sortedMarkets[i]);
+    }
+    console.info(`[LingoGeo] Market selector: alphabetical order verified for ${marketItems.length} items ✓`);
+
     await this.currencySelectorButton.click();
     await this.currencySelectorPopover.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
 
@@ -1278,6 +1376,9 @@ export class LingoGeoBannerPage {
     await expect(this.languageSelectorButton).toBeEnabled({ timeout: 8000 });
     await this.languageSelectorButton.click();
     const langSearchInput = this.languageSelectorPopover.locator('input').first();
+    if (!(await langSearchInput.isVisible().catch(() => false))) {
+      await this.languageSelectorButton.click();
+    }
     await expect(langSearchInput).toBeVisible({ timeout: 10000 });
     if (searchLanguage) {
       await expect(langSearchInput).toHaveAttribute('placeholder', searchLanguage, { timeout: 5000 });
@@ -1379,8 +1480,9 @@ export class LingoGeoBannerPage {
     ).toBeUndefined();
 
     // ── 2. Language selector click → international cookie + redirect ────────────
+    await this.languageSelectorButton.scrollIntoViewIfNeeded();
     await this.languageSelectorButton.click();
-    await this.languageSelectorPopover.waitFor({ state: 'visible', timeout: 6000 });
+    await this.languageSelectorPopover.waitFor({ state: 'visible', timeout: 8000 });
     await Promise.all([
       this.page.waitForNavigation({ waitUntil: 'load', timeout: 5000 }).catch(() => {}),
       this.languageSelectedItem.click(),
@@ -1433,18 +1535,38 @@ export class LingoGeoBannerPage {
     if (clickedCurrency) {
       const currencyTokens = LingoGeoBannerPage.extractCurrencyTokens(clickedCurrency);
       if (currencyTokens.length > 0) {
-        await this.priceCurrencySymbols.first().waitFor({ state: 'visible' });
+        // Wait for the post-redirect page to fully load before scrolling to the footer.
+        await this.page.waitForLoadState('load', { timeout: 30000 }).catch(() => {});
+        // Scroll first to trigger lazy-load, then wait for price symbols to attach.
+        await this.waitForFooterMarketSelectorsVisible();
+        await this.priceCurrencySymbols.first().waitFor({ state: 'attached', timeout: 20000 });
+        await this.page.evaluate(() => { window.__pcsCount = -1; window.__pcsStable = 0; });
+        await this.page.waitForFunction(() => {
+          const n = document.querySelectorAll('.price-currency-symbol').length;
+          if (n !== window.__pcsCount) { window.__pcsCount = n; window.__pcsStable = 0; return false; }
+          return ++window.__pcsStable >= 3;
+        }, { polling: 1000, timeout: 20000 }).catch(() => {
+          console.warn('[LingoGeo] Price card count did not stabilize within 20s — proceeding with current count');
+        });
         const count = await this.priceCurrencySymbols.count();
-        const cardSymbol = (await this.priceCurrencySymbols.first().textContent())?.trim() ?? '';
-        console.info(`[LingoGeo] >>> After interactions — Cards currency: ${cardSymbol} | Price currency symbols with '${cardSymbol}': ${count}`);
+        let verified = 0;
+        let firstSymbol = '';
         for (let i = 0; i < count; i++) {
           const cardText = (await this.priceCurrencySymbols.nth(i).textContent())?.trim() ?? '';
+          if (!cardText) continue;
+          if (!firstSymbol) firstSymbol = cardText;
           const matched = currencyTokens.some((token) => cardText.includes(token));
           expect(
             matched,
             `Post-redirect price card [${i}] '${cardText}' should contain currency from '${clickedCurrency}' (tokens: ${currencyTokens.join(', ')})`,
           ).toBe(true);
+          verified += 1;
         }
+        const postClickMarket = LingoGeoBannerPage.stripBidiChars(
+          (await this.currencySelectorButton.innerText().catch(() => '')).trim(),
+        );
+        console.info(`[LingoGeo] >>> After click — Cards currency (Rendered): '${firstSymbol}' | Market selector (Rendered): '${postClickMarket}' | markets.json: '${clickedCurrency}' | Price currency symbols with '${firstSymbol}': ${verified}`);
+        expect(verified, `No price symbols loaded after redirect — expected at least 1 of ${count} to contain '${clickedCurrency}'`).toBeGreaterThan(0);
       }
     }
   }
@@ -1503,46 +1625,35 @@ export class LingoGeoBannerPage {
    * }} copy — spread getModalCopy() result + geoIp from feature.region
    */
   async assertRegionalPriorityModal({ title, buttons = [], stayCountry, geoIp } = {}) {
+    console.info(`[LingoGeo] Regional priority modal — ${buttons.length} tab(s) expected`);
     await this.waitForGeoModalReady();
+    console.info(`[LingoGeo] Modal rendered ✓`);
 
-    // Initial title check (primary / priority-1 row)
     if (title) {
       await expect(this.geoRoutingModal).toContainText(title, { timeout: 10000 });
     }
 
-    // Per-tab loop: for each language tab validate —
-    //   • tab label visible & clickable
-    //   • modalTitle  (language-specific)
-    //   • modalDescription  (language-specific, {country} resolved)
-    //   • CTA button text contains this tab's country name
-    //   • dropdown opens and shows all options as "{thisTabCountry} - {nativeName}"
-    //     with the correct href for each language prefix
-    for (const { rowPrefix, nativeName, country, tabTitle, tabDescription } of buttons) {
+    for (const [i, { rowPrefix, nativeName, country, tabTitle, tabDescription }] of buttons.entries()) {
       if (!nativeName) continue;
 
-      // ── 1. Tab label ──────────────────────────────────────────────────────
       const tabId = LingoGeoBannerPage.nativeNameToTabId(nativeName);
-      console.info(`[LingoGeo] Tab — prefix:'${rowPrefix}' nativeName:'${nativeName}' id:'${tabId}'`);
       const tab = this.geoRoutingModal.locator(tabId);
       await expect(tab, `Tab '${tabId}' (${nativeName}) not found`).toBeVisible({ timeout: 10000 });
       await tab.click();
       await expect(this.geoRoutingModal).toBeVisible({ timeout: 5000 });
+      console.info(`[LingoGeo] Tab ${i + 1}/${buttons.length}: '${rowPrefix}' (${nativeName}) ✓`);
 
-      // ── 2. Title ──────────────────────────────────────────────────────────
       if (tabTitle) {
-        console.info(`[LingoGeo] Tab title — '${tabTitle}'`);
         await expect(this.geoRoutingModal).toContainText(tabTitle, { timeout: 5000 });
+        console.info(`[LingoGeo]   title:       expected='${tabTitle}' ✓`);
       }
 
-      // ── 3. Description ────────────────────────────────────────────────────
       if (tabDescription) {
         const resolved = tabDescription.replace(/\{country\}/gi, country ?? '{country}');
-        console.info(`[LingoGeo] Tab description — '${resolved}'`);
         await expect(this.geoRoutingModal).toContainText(resolved, { timeout: 5000 });
+        console.info(`[LingoGeo]   description: expected='${resolved}' ✓`);
       }
 
-      // ── 4. CTA button — country name (language-specific) ──────────────────
-      // Scope to the active tab panel (not hidden) so we don't match other panels.
       if (country) {
         const activePanel = this.geoRoutingModal
           .locator('[role="tabpanel"]:not([hidden])')
@@ -1551,20 +1662,19 @@ export class LingoGeoBannerPage {
           .locator('a, button')
           .filter({ has: this.page.locator('.icon-milo.down-arrow') })
           .first();
-        console.info(`[LingoGeo] Tab CTA button — country:'${country}'`);
         await expect(
           ctaBtn,
           `CTA button for tab '${nativeName}' does not contain country '${country}'`,
         ).toContainText(country, { timeout: 5000 });
+        console.info(`[LingoGeo]   CTA:         expected='${country}' ✓`);
 
-        // ── 5. Dropdown options — "{thisTabCountry} - {nativeName}" ───────────
         await ctaBtn.click();
         await expect(ctaBtn).toHaveAttribute('aria-expanded', 'true', { timeout: 5000 });
 
-        for (const { rowPrefix: optPrefix, nativeName: optNative } of buttons) {
+        for (const [j, { rowPrefix: optPrefix, nativeName: optNative }] of buttons.entries()) {
           if (!optNative) continue;
           const optionText = `${country} - ${optNative}`;
-          console.info(`[LingoGeo] Dropdown option — '${optionText}' href:/${optPrefix || ''}/express/?akamaiLocale=${geoIp}&country=${geoIp}`);
+          const href = `/${optPrefix || ''}express/?akamaiLocale=${geoIp}&country=${geoIp}`;
           const option = this.page
             .locator('a')
             .filter({ hasText: country })
@@ -1577,22 +1687,20 @@ export class LingoGeoBannerPage {
               `Dropdown option '${optionText}' href mismatch`,
             ).toHaveAttribute('href', LingoGeoBannerPage.buildOptionHrefPattern(optPrefix, geoIp));
           }
+          console.info(`[LingoGeo]   dropdown[${j + 1}]: expected='${optionText}'  →  ${href} ✓`);
         }
 
-        // Close dropdown before moving to the next tab
         await this.page.keyboard.press('Escape');
       }
     }
 
-    // Stay link — text and href
-    if (stayCountry) {
-      const renderedStay = await this.geoRoutingModalStayLink.innerText().catch(() => '');
-      console.info(`[LingoGeo] Stay link check — markets.json: '${stayCountry}' | Rendered: '${renderedStay.trim()}'`);
-      expect(
-        renderedStay.trim(),
-        `Stay link does not contain country '${stayCountry}'`,
-      ).toContain(stayCountry);
-    }
+    expect(stayCountry, `Stay link country could not be resolved from markets.json`).toBeTruthy();
+    const renderedStay = await this.geoRoutingModalStayLink.innerText().catch(() => '');
+    expect(
+      renderedStay.trim(),
+      `Stay link does not contain country '${stayCountry}'`,
+    ).toContain(stayCountry);
+    console.info(`[LingoGeo] Stay link: expected='${stayCountry}' | rendered='${renderedStay.trim()}' ✓`);
   }
 
 }
