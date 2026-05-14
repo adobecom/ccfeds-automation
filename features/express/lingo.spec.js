@@ -15,7 +15,7 @@ const jsonSnapshotFeature = {
   tcid: 'JS1',
   name: '@express-geo-json-snapshot',
   path: '/express/?akamaiLocale=us&mep=off',
-  tags: '@jsonSnapshot',
+  tags: '@jsonSnapshot @express-lingo-geo-suite',
 };
 
 const selectorContentsFeatures = [
