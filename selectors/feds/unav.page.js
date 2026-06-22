@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
 import { runAxeScan, getViolationSummary } from '../../utils/accessibility/axe-runner.js';
-import { setConsentCookies } from '../../utils/analytics/analytics.interceptor.js';
 
 export default class UnavPage {
   constructor(page) {
@@ -107,7 +106,6 @@ export default class UnavPage {
       try { localStorage.clear(); } catch { /* cross-origin frames may throw */ }
       try { sessionStorage.clear(); } catch { /* cross-origin frames may throw */ }
     }).catch(() => {});
-    await setConsentCookies(this.page, new URL(url).hostname);
     const response    = await this.page.goto(url, { waitUntil: 'load' });
     this.finalPageUrl = this.page.url();
 
