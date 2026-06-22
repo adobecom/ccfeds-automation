@@ -15,7 +15,7 @@ export const unavPages = [
   { path: '/creativecloud/buy/students.html',                                     name: 'cc-students',       clientId: 'adobedotcom-cc' },
   { path: '/products/photoshop.html',                                             name: 'photoshop',         clientId: 'adobedotcom-cc' },
   { path: '/products/illustrator.html',                                           name: 'illustrator',       clientId: 'adobedotcom-cc' },
-  { path: '/products/captivate/download-trial/try.html',                          name: 'captivate-trial',   clientId: 'trials1' },
+  //{ path: '/products/captivate/download-trial/try.html',                          name: 'captivate-trial',   clientId: 'trials1' },   sign in dependent
   { path: '/products/catalog.html#category=creativity-design',                    name: 'catalog',           clientId: 'adobedotcom-cc',  noAppSwitcher: true, slimFooter: true },
   { path: '/acrobat.html',                                                        name: 'acrobat',           clientId: 'acrobatmilo' },
   { path: '/acrobat/online.html',                                                 name: 'acrobat-online',    clientId: 'acrobatmilo',     slimFooter: true },

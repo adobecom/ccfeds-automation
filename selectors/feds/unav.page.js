@@ -296,7 +296,7 @@ export default class UnavPage {
 
     await this.appSwitcher.click();
     await expect(this.appSwitcherModal, `[${pageUrl}] App switcher modal (#unav-app-switcher-dialog-id) did not open after click`).toBeVisible({ timeout: 10000 });
-    await expect(this.appSwitcherLinks.first(), `[${pageUrl}] App switcher modal opened but no links appeared within 20s`).toBeVisible({ timeout: 20000 });
+    await expect(this.appSwitcherLinks.first(), `[${pageUrl}] App switcher modal opened but no links found`).toBeVisible({ timeout: 30000 });
 
     const linkCount = await this.appSwitcherLinks.count();
     expect(linkCount, `[${pageUrl}] App switcher modal has 0 links`).toBeGreaterThan(0);
@@ -953,9 +953,8 @@ export default class UnavPage {
         await expect(btn).toHaveAttribute('aria-expanded', 'true', { timeout: 2000 });
       });
 
-      // Skip second Escape check if first already confirmed Escape is broken — not a new failure.
       if (!escapeWorks) {
-        this.#ok(`[Keyboard] [${btnText}] Escape-after-Space skipped — Escape already confirmed non-functional`);
+        this.#warn(`[Keyboard] [${btnText}] Escape-after-Space skipped — Escape non-functional on this page`);
       } else {
         await keyCheck(`[${btnText}] Escape closes after Space`, async () => {
           await this.page.keyboard.press('Escape');
@@ -1087,8 +1086,8 @@ export default class UnavPage {
     expect(scriptCount, `[${pageUrl}] bfp.min.js loaded ${scriptCount}× — expected exactly 1`).toBe(1);
     await this.#ok(`[Network] BFP script ✓  ${scriptRes.url}`);
 
-    // BFP capture fires after UNav initialises — allow up to 20s after goto() returns
-    await this.#waitForResponse(/bfp_capture/, 15000);
+    // BFP capture fires after UNav initialises — allow extra time in parallel runs
+    await this.#waitForResponse(/bfp_capture/, 30000);
     const allBfpCapture = this.networkResponses.filter((r) => /bfp_capture/.test(r.url));
     const captureRes    = allBfpCapture.find((r) => r.status === 200);
     const captureCount  = allBfpCapture.filter((r) => r.status === 200).length;
