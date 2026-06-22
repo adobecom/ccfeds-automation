@@ -1,6 +1,5 @@
 import { expect } from '@playwright/test';
 import { rtlLocales } from '../../data/feds-lnav-locales.js';
-import { setConsentCookies } from '../../utils/analytics/analytics.interceptor.js';
 
 export default class FedsLnavPage {
   constructor(page, localeHref = 'https://www.adobe.com/') {
@@ -80,7 +79,6 @@ export default class FedsLnavPage {
   async navigateTo(baseURL, localePath, testPagePath) {
     const url = `${baseURL}${localePath}${testPagePath}`.replace('//', '/').replace(':/', '://');
     const domain = new URL(baseURL).hostname.replace(/^www\./, '');
-    await setConsentCookies(this.page, domain);
     console.info(`[LNav] Navigating to: ${url}`);
     const response = await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
     const status = response?.status() ?? 0;
