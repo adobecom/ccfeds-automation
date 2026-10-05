@@ -34,9 +34,12 @@
     "@axe-core/playwright": "^4.7.0",
     "@playwright/test": "^1.49.1",
     "axe-html-reporter": "^2.2.3",
-    "axios": "^1.7.4",
+    "axios": "^1.20.0",
+    "brace-expansion": "^5.0.12",
     "css": "^3.0.0",
-    "js-yaml": "^4.1.0"
+    "fast-xml-parser": "^5.11.2",
+    "js-yaml": "^4.3.2",
+    "minimatch": "^10.2.1"
   },
   "devDependencies": {
     "@babel/core": "7.21.3",
